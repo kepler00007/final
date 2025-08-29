@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Day Counter App</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f8f9fb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #setupScreen, #app {
+      display: none;
+      width: 100%;
+      height: 100%;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+      padding: 20px;
+    }
+    .day {
+      background: #fff;
+      border-radius: 20px;
+      padding: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      text-align: center;
+      transition: 0.3s;
+      min-height: 80px;
+    }
+    .day:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .today {
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+      color: #fff;
+      font-weight: bold;
+    }
+    .click-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: red;
+      border: none;
+      margin-top: 10px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      transition: 0.2s;
+    }
+    .click-btn:active {
+      transform: scale(0.9);
+    }
+    .complete-btn {
+      margin-top: 10px;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 12px;
+      background: #28a745;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="setupScreen" class="card">
+    <h2>Set Your Target Date</h2>
+    <input type="date" id="targetDateInput" />
+    <button onclick="saveTarget()">Set Target</button>
+  </div>
+
+  <div id="app">
+    <h2 id="daysLeft"></h2>
+    <div class="calendar" id="calendar"></div>
+  </div>
+
+  <script>
+    const setupScreen = document.getElementById('setupScreen');
+    const app = document.getElementById('app');
+    const daysLeftEl = document.getElementById('daysLeft');
+    const calendarEl = document.getElementById('calendar');
+
+    let targetDate = localStorage.getItem('targetDate');
+    let clickCounts = JSON.parse(localStorage.getItem('clickCounts') || '{}');
+    let completedDays = JSON.parse(localStorage.getItem('completedDays') || '[]');
+
+    function saveTarget() {
+      const val = document.getElementById('targetDateInput').value;
+      if (val) {
+        localStorage.setItem('targetDate', val);
+        targetDate = val;
+        showApp();
+      }
+    }
+
+    function showApp() {
+      setupScreen.style.display = 'none';
+      app.style.display = 'flex';
+      renderCalendar();
+      updateDaysLeft();
+    }
+
+    function updateDaysLeft() {
+      if (targetDate) {
+        const today = new Date();
+        const target = new Date(targetDate);
+        const diff = Math.ceil((target - today) / (1000*60*60*24));
+        daysLeftEl.textContent = diff + " days left until target";
+      }
+    }
+
+    function renderCalendar() {
+      calendarEl.innerHTML = "";
+      const today = new Date();
+      const monthEnd = new Date(today.getFullYear(), today.getMonth()+1, 0);
+      for (let d = 1; d <= monthEnd.getDate(); d++) {
+        const dateObj = new Date(today.getFullYear(), today.getMonth(), d);
+        const dateStr = dateObj.toISOString().split('T')[0];
+
+        const dayDiv = document.createElement('div');
+        dayDiv.classList.add('day');
+        if (d === today.getDate()) dayDiv.classList.add('today');
+        dayDiv.innerHTML = `<div>${d}</div>`;
+
+        // Add click button only for today
+        if (d === today.getDate()) {
+          const btn = document.createElement('button');
+          btn.className = 'click-btn';
+          btn.onclick = () => {
+            clickCounts[dateStr] = (clickCounts[dateStr] || 0) + 1;
+            localStorage.setItem('clickCounts', JSON.stringify(clickCounts));
+            renderCalendar();
+          };
+          dayDiv.appendChild(btn);
+        }
+
+        // Show click count
+        if (clickCounts[dateStr]) {
+          const countEl = document.createElement('div');
+          countEl.textContent = clickCounts[dateStr];
+          dayDiv.appendChild(countEl);
+        }
+
+        // Show complete button for today (entire day)
+        if (d === today.getDate()) {
+          if (!completedDays.includes(dateStr)) {
+            const cbtn = document.createElement('button');
+            cbtn.className = 'complete-btn';
+            cbtn.textContent = "Mark Complete";
+            cbtn.onclick = () => {
+              completedDays.push(dateStr);
+              localStorage.setItem('completedDays', JSON.stringify(completedDays));
+              renderCalendar();
+            };
+            dayDiv.appendChild(cbtn);
+          } else {
+            const done = document.createElement('div');
+            done.textContent = "✅ Completed";
+            dayDiv.appendChild(done);
+          }
+        }
+
+        calendarEl.appendChild(dayDiv);
+      }
+    }
+
+    if (!targetDate) {
+      setupScreen.style.display = 'flex';
+    } else {
+      showApp();
+    }
+  </script>
+</body>
+</html>
